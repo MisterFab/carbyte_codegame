@@ -1,17 +1,37 @@
-name: Python application test
+name: Run Challenge Tests
 
 on: [push, pull_request]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v2
+    
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
       with:
         python-version: '3.x'
+    
     - name: Install dependencies
-      run: pip install --upgrade pip
-    - name: Run test
-      run: python -m unittest discover -s . -p "test_*.py"
+      run: |
+        pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Find Modified Directories
+      id: modified-dirs
+      uses: jitterbit/get-changed-files@v1
+      with:
+        format: 'space-delimited'
+    
+    - name: Run Tests in Modified Directories
+      run: |
+        CHANGED_DIRS="${{ steps.modified-dirs.outputs.all }}"
+        echo "Changed directories: $CHANGED_DIRS"
+        for DIR in $CHANGED_DIRS; do
+          if [[ -d "$DIR" && -n "$(find "$DIR" -maxdepth 1 -name 'test_*.py')" ]]; then
+            echo "Running tests in $DIR"
+            python -m unittest discover -s "$DIR" -p "test_*.py"
+          fi
+        done
